@@ -8,6 +8,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
       - run: npm ci
+      - run: npm --prefix node_modules/@embedded-postgres/linux-x64 run postinstall
       - run: npm run typecheck
       - run: npm run build
       - run: npm test

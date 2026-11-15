@@ -43,6 +43,7 @@ jobs:
         run: |
           node --input-type=module -e 'import fs from "node:fs"; const p = JSON.parse(fs.readFileSync("package.json", "utf8")); if (process.env.RELEASE_TAG !== `v${p.version}`) throw new Error("Release tag does not match package.json version");'
       - run: npm ci
+      - run: npm --prefix node_modules/@embedded-postgres/linux-x64 run postinstall
       - run: npm run build
       - run: npm test
       - run: npm run pack:check
