@@ -1,0 +1,31 @@
+trigger: none
+
+pr:
+  branches:
+    include:
+      - main
+
+pool:
+  name: Default
+
+jobs:
+  - job: validate
+    timeoutInMinutes: 15
+    steps:
+      - checkout: self
+        persistCredentials: false
+      - task: NodeTool@0
+        inputs:
+          versionSpec: '24.x'
+      - script: npm ci
+        displayName: Install dependencies
+      - script: npm --prefix node_modules/@embedded-postgres/linux-x64 run postinstall
+        displayName: Restore bundled Postgres library links
+      - script: npm run build
+        displayName: Build
+      - script: npm run typecheck
+        displayName: Typecheck
+      - script: npm test
+        displayName: Test
+      - script: npm run pack:check
+        displayName: Check package

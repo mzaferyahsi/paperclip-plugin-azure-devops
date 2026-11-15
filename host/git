@@ -1,0 +1,25 @@
+#!/bin/bash
+# Paperclip Azure DevOps git wrapper: runs the real git with a credential helper for Azure DevOps and rewrites old SSH remotes to
+# HTTPS, so stock `git clone/fetch/push` works without SSH keys. -c settings beat every config file, which matters because managed
+# runs switch the system and user git config off. Installed root-owned in /opt/paperclip-ado/bin and put first on PATH by Paperclip.
+ROOT="${PAPERCLIP_ADO_ROOT:-/opt/paperclip-ado}"
+REAL="${PAPERCLIP_ADO_REAL_GIT:-}"
+[ -z "$REAL" ] && [ -r "$ROOT/etc/real-git" ] && REAL="$(cat "$ROOT/etc/real-git")"
+[ -x "$REAL" ] || REAL=/usr/bin/git
+BASE="${PAPERCLIP_ADO_BASE_URL:-https://dev.azure.com}"
+CONF="$ROOT/etc/git-access.conf"
+args=(-c "credential.$BASE.helper=" -c "credential.$BASE.helper=$ROOT/bin/git-credential-paperclip-ado" -c "credential.$BASE.useHttpPath=true")
+seen=""
+if [ -r "$CONF" ]; then
+  # one line per project: <org>/<project>
+  while IFS= read -r line; do
+    case "$line" in ''|\#*) continue;; esac
+    org="${line%%/*}"; proj="${line#*/}"
+    case " $seen " in *" $org "*) ;; *) seen="$seen $org"
+      # organizations that still use the legacy <org>.visualstudio.com host get the same brokered credential
+      args+=(-c "credential.https://$org.visualstudio.com.helper=" -c "credential.https://$org.visualstudio.com.helper=$ROOT/bin/git-credential-paperclip-ado" -c "credential.https://$org.visualstudio.com.useHttpPath=true");; esac
+    to="https://dev.azure.com/$org/$proj/_git/"
+    args+=(-c "url.$to.insteadOf=git@ssh.dev.azure.com:v3/$org/$proj/" -c "url.$to.insteadOf=ssh://git@ssh.dev.azure.com/v3/$org/$proj/")
+  done < "$CONF"
+fi
+exec "$REAL" "${args[@]}" "$@"

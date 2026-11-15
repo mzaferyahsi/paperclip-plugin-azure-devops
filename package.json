@@ -1,0 +1,56 @@
+{
+  "name": "paperclip-plugin-azure-devops",
+  "version": "0.17.0",
+  "description": "Paperclip plugin: Azure DevOps pull requests, work items and builds as first-class citizens - link chips, live status, brokered agent tools, webhooks and a reconciler.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mzaferyahsi/paperclip-plugin-azure-devops.git"
+  },
+  "private": false,
+  "type": "module",
+  "keywords": [
+    "paperclip",
+    "paperclip-plugin",
+    "azure-devops"
+  ],
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js",
+    "ui": "./dist/ui"
+  },
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "files": [
+    "manifest.json",
+    "dist",
+    "migrations",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "docs",
+    "host"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && node scripts/sync-manifest.mjs && node scripts/validate-manifest.mjs && node scripts/build.mjs",
+    "validate:manifest": "node scripts/validate-manifest.mjs",
+    "typecheck": "tsc --noEmit",
+    "pack:check": "node scripts/pack-check.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.ts"
+  },
+  "dependencies": {
+    "@paperclipai/plugin-sdk": "2026.1012.0",
+    "react": "19.2.0"
+  },
+  "devDependencies": {
+    "@embedded-postgres/linux-x64": "18.1.0-beta.16",
+    "@paperclipai/shared": "2026.1012.0",
+    "@types/node": "24.10.0",
+    "@types/react": "19.2.18",
+    "esbuild": "0.25.11",
+    "pg": "8.23.1",
+    "typescript": "5.9.3"
+  }
+}

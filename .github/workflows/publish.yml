@@ -1,0 +1,69 @@
+name: Publish packages
+
+on:
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name || inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag || github.ref_name }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: Check release version
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; const p = JSON.parse(fs.readFileSync("package.json", "utf8")); if (process.env.RELEASE_TAG !== `v${p.version}`) throw new Error("Release tag does not match package.json version");'
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run pack:check
+      - name: Check npm version
+        id: npm-version
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const r = await fetch(`https://registry.npmjs.org/${encodeURIComponent(p.name)}/${encodeURIComponent(p.version)}`);
+          if (!r.ok && r.status !== 404) throw new Error(`npm registry returned ${r.status}`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `exists=${r.ok}\n`);
+          JS
+      - name: Check trusted publishing npm support
+        run: |
+          node --input-type=module <<'JS'
+          import {execFileSync} from 'node:child_process';
+          const version = execFileSync('npm', ['--version'], {encoding: 'utf8'}).trim();
+          const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+          if (!match || Number(match[1]) < 11 || (Number(match[1]) === 11 && (Number(match[2]) < 5 || (Number(match[2]) === 5 && Number(match[3]) < 1)))) throw new Error(`npm ${version} is unsupported; trusted publishing requires npm >= 11.5.1`);
+          JS
+      - name: Publish to npm
+        if: steps.npm-version.outputs.exists != 'true'
+        run: npm publish --provenance --access public
